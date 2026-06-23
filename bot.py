@@ -6,7 +6,9 @@ import time
 from datetime import datetime, timedelta
 
 SESSION_ID = os.environ.get('IG_SESSIONID')
-TARGET_ACCOUNT = "instagram" 
+
+# القائمة الجديدة للحسابات الأجنبية المستهدفة (قراء الكتب الإلكترونية)
+TARGET_ACCOUNTS = ["amazonkindle", "bookbub", "goodreads", "epicreads"] 
 DATA_FILE = "following_data.json"
 
 def human_delay(min_sec=30, max_sec=90):
@@ -15,12 +17,12 @@ def human_delay(min_sec=30, max_sec=90):
 def simulate_human_behavior(cl):
     print("جاري محاكاة سلوك بشري...")
     try:
-        # تصفح الصفحة الرئيسية (التايم لاين)
+        # تصفح الصفحة الرئيسية
         cl.get_timeline_feed()
         print("تم تصفح الصفحة الرئيسية بنجاح.")
         human_delay(15, 45)
         
-        # تفقد الملف الشخصي الخاص بك (سلوك طبيعي جداً)
+        # تفقد الملف الشخصي
         cl.user_info(cl.user_id)
         print("تم تفقد الملف الشخصي.")
         human_delay(10, 30)
@@ -32,8 +34,7 @@ def main():
         print("خطأ: لم يتم العثور على IG_SESSIONID في الـ Secrets")
         return
 
-    # كسر روتين الجدولة: تأخير عشوائي في البداية بين 60 إلى 300 ثانية (1 إلى 5 دقائق)
-    # هذا يمنع إنستقرام من ملاحظة أن البوت يعمل في نفس الدقيقة دائماً
+    # تأخير عشوائي في البداية لكسر روتين الجدولة
     initial_delay = random.randint(60, 300)
     print(f"تم بدء التشغيل... سيتم الانتظار {initial_delay} ثانية للتمويه.")
     time.sleep(initial_delay)
@@ -51,12 +52,12 @@ def main():
     data = json.load(open(DATA_FILE)) if os.path.exists(DATA_FILE) else {}
     now = datetime.now()
     
-    # 1. إلغاء المتابعة (بشكل عشوائي لمن مر عليهم 24 ساعة)
+    # 1. إلغاء المتابعة (لمن مر عليهم 24 ساعة)
     users_to_unfollow = [uid for uid, t_str in data.items() if now - datetime.fromisoformat(t_str) >= timedelta(hours=24)]
     
     if users_to_unfollow:
-        random.shuffle(users_to_unfollow) # خلط القائمة 
-        for user_id in users_to_unfollow[:3]: # الغاء 3 كحد أقصى في كل دورة
+        random.shuffle(users_to_unfollow) # عشوائية في الإلغاء
+        for user_id in users_to_unfollow[:3]: # إبقاء العدد قليل حالياً
             try:
                 cl.user_unfollow(user_id)
                 print(f"تم إلغاء المتابعة للحساب: {user_id}")
@@ -68,13 +69,16 @@ def main():
     # 2. محاكاة التصفح قبل بدء المتابعة
     simulate_human_behavior(cl)
     
-    # 3. المتابعة الآمنة
+    # 3. المتابعة العشوائية من القائمة المستهدفة
     try:
-        print(f"جاري جلب متابعين من: {TARGET_ACCOUNT}")
-        target_id = cl.user_id_from_username(TARGET_ACCOUNT)
+        # هنا الكود يختار حساباً عشوائياً من القائمة في الأعلى
+        chosen_target = random.choice(TARGET_ACCOUNTS)
+        print(f"الحساب المستهدف لهذه الدورة هو: {chosen_target}")
+        
+        target_id = cl.user_id_from_username(chosen_target)
         followers = cl.user_followers(target_id, amount=20) 
         
-        # اختيار عدد عشوائي جداً من 2 إلى 4 متابعات فقط
+        # اختيار عدد عشوائي جداً من 2 إلى 4 متابعات فقط في هذه الدورة
         to_follow = random.sample(list(followers.keys()), min(len(followers), random.randint(2, 4)))
         
         for user_id in to_follow:
