@@ -1,80 +1,64 @@
 from instagrapi import Client
 import json
 import os
-from datetime import datetime, timedelta
 import random
 import time
+from datetime import datetime, timedelta
 
-# استدعاء الـ Session ID السري من GitHub
 SESSION_ID = os.environ.get('IG_SESSIONID')
-TARGET_ACCOUNT = "instagram" # ضع الحساب المستهدف هنا
-
+TARGET_ACCOUNT = "instagram" 
 DATA_FILE = "following_data.json"
 
-if not os.path.exists(DATA_FILE):
-    with open(DATA_FILE, 'w') as f:
-        json.dump({}, f)
+def human_delay(min_sec=30, max_sec=90):
+    time.sleep(random.randint(min_sec, max_sec))
 
-def load_data():
-    with open(DATA_FILE, 'r') as f:
-        return json.load(f)
-
-def save_data(data):
-    with open(DATA_FILE, 'w') as f:
-        json.dump(data, f, indent=4)
+def simulate_human_behavior(cl):
+    print("جاري محاكاة سلوك بشري...")
+    # تصفح الصفحة الرئيسية
+    cl.get_timeline_feed()
+    human_delay(10, 30)
+    # تصفح الريلز
+    cl.get_reels_tab_feed()
+    human_delay(10, 30)
 
 def main():
-    if not SESSION_ID:
-        print("خطأ: لم يتم العثور على IG_SESSIONID في الـ Secrets")
-        return
-
     cl = Client()
-    print("جاري تسجيل الدخول باستخدام Session ID...")
+    cl.login_by_sessionid(SESSION_ID)
+    
+    data = json.load(open(DATA_FILE)) if os.path.exists(DATA_FILE) else {}
+    
+    # 1. إلغاء المتابعة (بشكل عشوائي)
+    now = datetime.now()
+    users_to_unfollow = [uid for uid, t_str in data.items() if now - datetime.fromisoformat(t_str) >= timedelta(hours=24)]
+    
+    if users_to_unfollow:
+        random.shuffle(users_to_unfollow) # عشوائية في الإلغاء
+        for user_id in users_to_unfollow[:3]: # الغاء عدد بسيط جداً لتبدو طبيعي
+            cl.user_unfollow(user_id)
+            del data[user_id]
+            time.sleep(random.randint(20, 60))
+
+    # 2. المتابعة (سلوك بشري)
+    simulate_human_behavior(cl)
     
     try:
-        # تسجيل الدخول السري عبر الكوكيز
-        cl.login_by_sessionid(SESSION_ID)
-        print("تم تسجيل الدخول بنجاح وتخطي الحماية!")
-    except Exception as e:
-        print(f"حدث خطأ أثناء تسجيل الدخول: {e}")
-        return
-
-    data = load_data()
-    now = datetime.now()
-
-    # إلغاء المتابعة بعد 24 ساعة
-    users_to_unfollow = [uid for uid, t_str in data.items() if now - datetime.fromisoformat(t_str) >= timedelta(hours=24)]
-
-    if users_to_unfollow:
-        print(f"جاري إلغاء متابعة {len(users_to_unfollow)} حساب...")
-        for user_id in users_to_unfollow:
-            try:
-                cl.user_unfollow(user_id)
-                print(f"تم إلغاء متابعة الحساب: {user_id}")
-                del data[user_id]
-                save_data(data)
-                time.sleep(random.randint(10, 20)) 
-            except Exception as e:
-                print(f"خطأ أثناء إلغاء المتابعة: {e}")
-
-    # جلب مستخدمين جدد ومتابعتهم
-    try:
-        print(f"جاري البحث عن متابعين من: {TARGET_ACCOUNT}")
         target_id = cl.user_id_from_username(TARGET_ACCOUNT)
-        followers = cl.user_followers(target_id, amount=15) 
+        followers = cl.user_followers(target_id, amount=20) 
         
-        for user_id in followers.keys():
+        # اختيار عدد عشوائي جداً من 2 إلى 4 متابعات فقط في كل دورة
+        to_follow = random.sample(list(followers.keys()), min(len(followers), random.randint(2, 4)))
+        
+        for user_id in to_follow:
             if str(user_id) not in data:
-                print(f"جاري متابعة الحساب: {user_id}")
                 cl.user_follow(user_id)
                 data[str(user_id)] = now.isoformat()
-                save_data(data)
-                time.sleep(random.randint(15, 30))
+                print(f"تمت متابعة: {user_id}")
+                human_delay(40, 120) # تأخير طويل بين المتابعات
                 
+        json.dump(data, open(DATA_FILE, 'w'), indent=4)
+        
     except Exception as e:
-        print(f"حدث خطأ أثناء المتابعة: {e}")
-
-    print("تم الانتهاء بنجاح.")
+        print(f"خطأ: {e}")
 
 if __name__ == "__main__":
     main()
