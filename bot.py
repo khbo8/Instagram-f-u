@@ -1,16 +1,17 @@
 from instagrapi import Client
+from instagrapi.exceptions import ChallengeRequired
 import json
 import os
 from datetime import datetime, timedelta
 import random
 import time
 
-# قراءة البيانات من متغيرات البيئة بـ GitHub
 USERNAME = os.environ.get('IG_USERNAME')
 PASSWORD = os.environ.get('IG_PASSWORD')
-TARGET_ACCOUNT = "instagram" # غيره للحساب المستهدف
+TARGET_ACCOUNT = "instagram" # ضع هنا يوزر الحساب المستهدف
 
 DATA_FILE = "following_data.json"
+SESSION_FILE = "session.json" # ملف حفظ الجلسة
 
 if not os.path.exists(DATA_FILE):
     with open(DATA_FILE, 'w') as f:
@@ -31,9 +32,32 @@ def main():
 
     cl = Client()
     print("جاري تسجيل الدخول...")
+    
+    # محاولة تسجيل الدخول مع حفظ الجلسة وتخطي التحديات
     try:
-        cl.login(USERNAME, PASSWORD)
-        print("تم تسجيل الدخول بنجاح!")
+        if os.path.exists(SESSION_FILE):
+            cl.load_settings(SESSION_FILE)
+            cl.login(USERNAME, PASSWORD)
+            print("تم تسجيل الدخول بنجاح باستخدام الجلسة المحفوظة!")
+        else:
+            cl.login(USERNAME, PASSWORD)
+            cl.dump_settings(SESSION_FILE)
+            print("تم تسجيل الدخول لأول مرة وحفظ الجلسة بنجاح!")
+            
+    except ChallengeRequired:
+        print("\n[تنبيه هام] إنستقرام يطلب تأكيد الدخول!")
+        print("الرجاء فتح تطبيق إنستقرام في هاتفك الآن والضغط على 'هذا أنا' (This was me).")
+        print("السكريبت سينتظر 60 ثانية لتتمكن من التأكيد...")
+        time.sleep(60) # الانتظار دقيقة كاملة للتأكيد من الهاتف
+        
+        try:
+            cl.login(USERNAME, PASSWORD)
+            cl.dump_settings(SESSION_FILE)
+            print("تم تسجيل الدخول بنجاح بعد التأكيد، وحفظ الجلسة!")
+        except Exception as e:
+            print(f"فشل تسجيل الدخول حتى بعد وقت الانتظار: {e}")
+            return
+            
     except Exception as e:
         print(f"فشل تسجيل الدخول: {e}")
         return
@@ -56,7 +80,7 @@ def main():
             except Exception as e:
                 print(f"خطأ أثناء إلغاء المتابعة: {e}")
 
-    # جلب مستخدمين جدد ومتابعتهم (تم تقليل العدد لـ 15 لتفادي الحظر الفوري)
+    # جلب مستخدمين جدد ومتابعتهم
     try:
         print(f"جاري البحث عن متابعين من: {TARGET_ACCOUNT}")
         target_id = cl.user_id_from_username(TARGET_ACCOUNT)
