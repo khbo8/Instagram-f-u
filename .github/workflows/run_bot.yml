@@ -2,15 +2,14 @@ name: Instagram Follow Bot
 
 on:
   schedule:
-    # جدولة العمل 3 مرات في اليوم (كل 8 ساعات) بتوقيت جرينتش
     - cron: '0 0,8,16 * * *'
-  workflow_dispatch: # يتيح لك تشغيل البوت يدوياً بضغطة زر للتجربة
+  workflow_dispatch:
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # إعطاء صلاحية للـ Bot لإعادة رفع ملف الـ JSON المحدث
+      contents: write
 
     steps:
     - name: Checkout repository
@@ -28,8 +27,7 @@ jobs:
 
     - name: Run Instagram Bot
       env:
-        IG_USERNAME: ${{ secrets.IG_USERNAME }}
-        IG_PASSWORD: ${{ secrets.IG_PASSWORD }}
+        IG_SESSIONID: ${{ secrets.IG_SESSIONID }}
       run: python bot.py
 
     - name: Commit and Push if JSON updated
