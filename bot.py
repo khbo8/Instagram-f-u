@@ -76,10 +76,10 @@ def main():
         print(f"الحساب المستهدف لهذه الدورة هو: {chosen_target}")
         
         target_id = cl.user_id_from_username(chosen_target)
-        followers = cl.user_followers(target_id, amount=20) 
+        followers = cl.user_followers(target_id, amount=40) 
         
         # اختيار عدد عشوائي جداً من 2 إلى 4 متابعات فقط في هذه الدورة
-        to_follow = random.sample(list(followers.keys()), min(len(followers), random.randint(2, 4)))
+        to_follow = random.sample(list(followers.keys()), min(len(followers), random.randint(25, 40)))
         
         for user_id in to_follow:
             if str(user_id) not in data:
